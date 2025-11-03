@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # GitHub Actions Runner Setup Script
-# Usage: ./setup-runner.sh <repo_url> <token> [runner_name] [labels] [work_dir]
+# Usage: ./setup-runner.sh <repo_url> <token> [runner_name] [labels] [work_dir] [username]
 
 set -e  # Exit on any error
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 <repo_url> <token> [runner_name] [labels] [work_dir]"
+    echo "Usage: $0 <repo_url> <token> [runner_name] [labels] [work_dir] [username]"
     echo ""
     echo "Required arguments:"
     echo "  repo_url     - GitHub repository URL (e.g., https://github.com/owner/repo)"
@@ -17,11 +17,12 @@ usage() {
     echo "  runner_name  - Name for the runner (default: hostname with timestamp)"
     echo "  labels       - Comma-separated labels (default: azure-linux)"
     echo "  work_dir     - Work directory name (default: _work)"
+    echo "  username     - User to run the runner as (default: azureuser)"
     echo ""
     echo "Examples:"
     echo "  $0 https://github.com/myorg/myrepo ABC123TOKEN"
     echo "  $0 https://github.com/myorg/myrepo ABC123TOKEN my-runner custom-label1,custom-label2"
-    echo "  $0 https://github.com/myorg/myrepo ABC123TOKEN my-runner azure-linux,gpu custom_work"
+    echo "  $0 https://github.com/myorg/myrepo ABC123TOKEN my-runner azure-linux,gpu custom_work azureuser"
     exit 1
 }
 
@@ -38,11 +39,43 @@ TOKEN="$2"
 RUNNER_NAME="${3:-$(hostname)-$(date +%s)}"
 LABELS="${4:-azure-linux}"
 WORK_DIR="${5:-_work}"
+USERNAME="${6:-azureuser}"
 
 # Runner version (you can update this to the latest version)
 RUNNER_VERSION="2.329.0"
 RUNNER_PACKAGE="actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
 RUNNER_CHECKSUM="194f1e1e4bd02f80b7e9633fc546084d8d4e19f3928a324d512ea53430102e1d"
+
+# Check if running as root and handle user switching
+CURRENT_USER=$(whoami)
+if [ "$CURRENT_USER" = "root" ]; then
+    echo "Running as root. Setting up to run as user: $USERNAME"
+    
+    # Check if user exists, create if not
+    if ! id "$USERNAME" >/dev/null 2>&1; then
+        echo "Creating user: $USERNAME"
+        useradd -m -s /bin/bash "$USERNAME"
+    fi
+    
+    # Set up the script path for the target user
+    USER_HOME=$(eval echo "~$USERNAME")
+    SCRIPT_PATH="$USER_HOME/github-runner-setup.sh"
+    
+    # Copy this script to the user's home directory
+    cp "$0" "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
+    chown "$USERNAME:$USERNAME" "$SCRIPT_PATH"
+    
+    # Create and set up the runner directory with proper permissions
+    RUNNER_DIR="$USER_HOME/github-runner"
+    mkdir -p "$RUNNER_DIR"
+    chown -R "$USERNAME:$USERNAME" "$RUNNER_DIR"
+    
+    echo "Switching to user $USERNAME and re-executing script..."
+    # Re-execute this script as the target user
+    su - "$USERNAME" -c "cd '$RUNNER_DIR' && '$SCRIPT_PATH' '$REPO_URL' '$TOKEN' '$RUNNER_NAME' '$LABELS' '$WORK_DIR' '$USERNAME'"
+    exit $?
+fi
 
 echo "=== GitHub Actions Runner Setup ==="
 echo "Repository URL: $REPO_URL"
@@ -50,6 +83,7 @@ echo "Runner Name: $RUNNER_NAME"
 echo "Labels: $LABELS"
 echo "Work Directory: $WORK_DIR"
 echo "Runner Version: $RUNNER_VERSION"
+echo "Running as User: $(whoami)"
 echo "=================================="
 echo ""
 
