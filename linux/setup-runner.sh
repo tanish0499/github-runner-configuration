@@ -36,7 +36,8 @@ fi
 # Parse arguments
 REPO_URL="$1"
 TOKEN="$2"
-RUNNER_NAME="${3:-$(hostname)-$(date +%s)}"
+RUNNER_NAME_BASE="${3:-$(hostname)-$(date +%s)}"
+RUNNER_NAME="${RUNNER_NAME_BASE}-$(shuf -i 10000-99999 -n 1 2>/dev/null || echo $((RANDOM % 90000 + 10000)))"
 LABELS="${4:-azure-linux}"
 WORK_DIR="${5:-_work}"
 USERNAME="${6:-azureuser}"
