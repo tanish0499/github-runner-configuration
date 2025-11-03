@@ -67,67 +67,67 @@ if [ "$CURRENT_USER" = "root" ]; then
     
     echo "Switching to user $USERNAME and setting up runner..."
     
-    # Create inline script with the runner setup logic
-    su - "$USERNAME" -c "
-    set -e
-    cd '$RUNNER_DIR'
-    
-    echo '=== GitHub Actions Runner Setup ==='
-    echo 'Repository URL: $REPO_URL'
-    echo 'Runner Name: $RUNNER_NAME'
-    echo 'Labels: $LABELS'
-    echo 'Work Directory: $WORK_DIR'
-    echo 'Runner Version: $RUNNER_VERSION'
-    echo 'Running as User: \$(whoami)'
-    echo '=================================='
-    echo ''
-    
-    # Create and enter actions-runner directory
-    echo 'Creating actions-runner directory...'
-    mkdir -p actions-runner
-    cd actions-runner
-    
-    # Download the runner package
-    echo 'Downloading GitHub Actions Runner v$RUNNER_VERSION...'
-    curl -o '$RUNNER_PACKAGE' -L 'https://github.com/actions/runner/releases/download/v$RUNNER_VERSION/$RUNNER_PACKAGE'
-    
-    # Verify checksum
-    echo 'Verifying package integrity...'
-    echo '$RUNNER_CHECKSUM  $RUNNER_PACKAGE' | shasum -a 256 -c
-    
-    # Extract the package
-    echo 'Extracting runner package...'
-    tar xzf './$RUNNER_PACKAGE'
-    
-    # Configure the runner
-    echo 'Configuring the runner...'
-    ./config.sh --url '$REPO_URL' \\
-                --token '$TOKEN' \\
-                --name '$RUNNER_NAME' \\
-                --labels '$LABELS' \\
-                --work '$WORK_DIR' \\
-                --runnergroup 'Default' \\
-                --unattended
-    
-    # Start the runner in background
-    echo 'Starting the runner in background...'
-    nohup ./run.sh > runner.log 2>&1 &
-    RUNNER_PID=\$!
-    
-    echo ''
-    echo '=== Setup Complete ==='
-    echo \"Runner is now running in the background with PID: \$RUNNER_PID\"
-    echo \"Log file: \$(pwd)/runner.log\"
-    echo ''
-    echo 'Useful commands:'
-    echo \"  View logs:        tail -f \$(pwd)/runner.log\"
-    echo '  Check if running: ps aux | grep run.sh'
-    echo \"  Stop runner:      kill \$RUNNER_PID\"
-    echo '  Or stop runner:   pkill -f run.sh'
-    echo ''
-    echo \"Runner directory: \$(pwd)\"
-    echo '======================'
-    "
+    # Create inline script with the runner setup logic using here-doc
+    su - "$USERNAME" << SCRIPT_EOF
+set -e
+cd "$RUNNER_DIR"
+
+echo "=== GitHub Actions Runner Setup ==="
+echo "Repository URL: $REPO_URL"
+echo "Runner Name: $RUNNER_NAME"
+echo "Labels: $LABELS"
+echo "Work Directory: $WORK_DIR"
+echo "Runner Version: $RUNNER_VERSION"
+echo "Running as User: \$(whoami)"
+echo "=================================="
+echo ""
+
+# Create and enter actions-runner directory
+echo "Creating actions-runner directory..."
+mkdir -p actions-runner
+cd actions-runner
+
+# Download the runner package
+echo "Downloading GitHub Actions Runner v$RUNNER_VERSION..."
+curl -o "$RUNNER_PACKAGE" -L "https://github.com/actions/runner/releases/download/v$RUNNER_VERSION/$RUNNER_PACKAGE"
+
+# Verify checksum
+echo "Verifying package integrity..."
+echo "$RUNNER_CHECKSUM  $RUNNER_PACKAGE" | shasum -a 256 -c
+
+# Extract the package
+echo "Extracting runner package..."
+tar xzf "./$RUNNER_PACKAGE"
+
+# Configure the runner
+echo "Configuring the runner..."
+./config.sh --url "$REPO_URL" \
+            --token "$TOKEN" \
+            --name "$RUNNER_NAME" \
+            --labels "$LABELS" \
+            --work "$WORK_DIR" \
+            --runnergroup "Default" \
+            --unattended
+
+# Start the runner in background
+echo "Starting the runner in background..."
+nohup ./run.sh > runner.log 2>&1 &
+RUNNER_PID=\$!
+
+echo ""
+echo "=== Setup Complete ==="
+echo "Runner is now running in the background with PID: \$RUNNER_PID"
+echo "Log file: \$(pwd)/runner.log"
+echo ""
+echo "Useful commands:"
+echo "  View logs:        tail -f \$(pwd)/runner.log"
+echo "  Check if running: ps aux | grep run.sh"
+echo "  Stop runner:      kill \$RUNNER_PID"
+echo "  Or stop runner:   pkill -f run.sh"
+echo ""
+echo "Runner directory: \$(pwd)"
+echo "======================"
+SCRIPT_EOF
     exit $?
 fi
 
